@@ -22,6 +22,8 @@ SUPPORTED_PIPELINES = [
     "sentiment-analysis",
     "fill-mask",
     "question-answering",
+    "text2text-generation",
+    "conversational",
     "text-generation",
     "translation_en_to_fr",
     "translation_en_to_de",
