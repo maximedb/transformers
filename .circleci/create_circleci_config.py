@@ -235,7 +235,7 @@ custom_tokenizers_job = CircleCIJob(
     ],
 )
 
-`
+
 examples_torch_job = CircleCIJob(
     "examples_torch",
     cache_name="torch_examples",
