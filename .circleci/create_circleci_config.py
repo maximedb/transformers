@@ -117,7 +117,7 @@ class CircleCIJob:
         test_command_2 = 'python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests $(cat circleci_test_files_splitted.txt)'
 
         steps.append({"run": {"name": "Run tests", "command": test_command}})
-        steps.append({"run": {"name": "Run tests 2", "command": test_command_2}})
+        # steps.append({"run": {"name": "Run tests 2", "command": test_command_2}})
 
         steps.append({"store_artifacts": {"path": "~/transformers/circleci_test_files.txt"}})
         steps.append({"store_artifacts": {"path": "~/transformers/circleci_test_files_splitted.txt"}})
