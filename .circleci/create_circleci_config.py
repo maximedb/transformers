@@ -36,7 +36,7 @@ class CircleCIJob:
     docker_image: List[Dict[str, str]] = None
     install_steps: List[str] = None
     marker: Optional[str] = None
-    parallelism: Optional[int] = 1
+    parallelism: Optional[int] = 4
     pytest_num_workers: int = 16
     pytest_options: Dict[str, Any] = None
     resource_class: Optional[str] = "xlarge"
@@ -106,7 +106,7 @@ class CircleCIJob:
         if self.marker is not None:
             test_command += f" -m {self.marker}"
         #test_command += " | tee tests_output.txt"
-        test_command = 'TEST=$(echo "tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py" | circleci tests split) && python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests_$TEST | tee tests_output.txt'
+        test_command = 'TEST=$(echo "tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py tests/models/bart/test_modeling_bart.py tests/models/t5/test_modeling_t5.py" | circleci tests split) && python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests_$TEST | tee tests_output.txt'
         # test_command = 'TEST=$(echo "tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py" | circleci tests split) && echo $TEST'
         steps.append({"run": {"name": "Run tests", "command": test_command}})
         steps.append({"store_artifacts": {"path": "~/transformers/tests_output.txt"}})
