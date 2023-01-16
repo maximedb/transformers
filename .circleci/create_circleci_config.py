@@ -105,8 +105,9 @@ class CircleCIJob:
             test_command += " " + " ".join(self.tests_to_run)
         if self.marker is not None:
             test_command += f" -m {self.marker}"
-        test_command += " | tee tests_output.txt"
-        test_command = 'TEST=$(echo "tests/models/bert/test_modeliing_bert.py tests/models/gpt2/test_modeliing_gpt2.py" | circleci tests split) && python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests_$TEST  | tee tests_output.txt'
+        #test_command += " | tee tests_output.txt"
+        #test_command = 'TEST=$(echo "tests/models/bert/test_modeliing_bert.py tests/models/gpt2/test_modeliing_gpt2.py" | circleci tests split) && python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests_$TEST | tee tests_output.txt'
+        test_command = 'TEST=$(echo "tests/models/bert/test_modeliing_bert.py tests/models/gpt2/test_modeliing_gpt2.py" | circleci tests split) && echo $TEST'
         steps.append({"run": {"name": "Run tests", "command": test_command}})
         steps.append({"store_artifacts": {"path": "~/transformers/tests_output.txt"}})
         steps.append({"store_artifacts": {"path": "~/transformers/reports"}})
