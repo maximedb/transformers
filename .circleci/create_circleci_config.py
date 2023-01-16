@@ -156,7 +156,7 @@ torch_job = CircleCIJob(
         "pip install .[sklearn,torch,testing,sentencepiece,torch-speech,vision,timm]",
         "pip install git+https://github.com/huggingface/accelerate",
     ],
-    pytest_num_workers=3,
+    pytest_num_workers=16,
 )
 
 
@@ -235,7 +235,7 @@ custom_tokenizers_job = CircleCIJob(
     ],
 )
 
-
+`
 examples_torch_job = CircleCIJob(
     "examples_torch",
     cache_name="torch_examples",
