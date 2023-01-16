@@ -109,10 +109,11 @@ class CircleCIJob:
         test_command = 'TEST=$(echo "tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py tests/models/bart/test_modeling_bart.py tests/models/t5/test_modeling_t5.py" | circleci tests split) && python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests $TEST | tee tests_output.txt'
         # test_command = 'TEST=$(echo "tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py" | circleci tests split) && echo $TEST'
         test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py" | circleci tests split) && echo $TEST'
-        test_command = 'TEST=$(echo tests/models/bert/__init__.py tests/models/bert/test_modeling_bert.py tests/models/bert/test_modeling_flax_bert.py tests/models/bert/test_modeling_tf_bert.py tests/models/bert/test_tokenization_bert.py tests/models/bert/test_tokenization_bert_tf.py | circleci tests split) && echo $TEST'
+        # test_command = 'TEST=$(echo tests/models/bert/__init__.py tests/models/bert/test_modeling_bert.py tests/models/bert/test_modeling_flax_bert.py tests/models/bert/test_modeling_tf_bert.py tests/models/bert/test_tokenization_bert.py tests/models/bert/test_tokenization_bert_tf.py | circleci tests split) && echo $TEST'
+        test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py") && echo $TEST > circleci_test_files.txt'
 
         steps.append({"run": {"name": "Run tests", "command": test_command}})
-        steps.append({"store_artifacts": {"path": "~/transformers/tests_output.txt"}})
+        steps.append({"store_artifacts": {"path": "~/transformers/circleci_test_files.txt"}})
         steps.append({"store_artifacts": {"path": "~/transformers/reports"}})
         job["steps"] = steps
         return job
