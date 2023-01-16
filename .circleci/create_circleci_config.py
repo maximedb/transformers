@@ -111,6 +111,8 @@ class CircleCIJob:
         test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py" | circleci tests split) && echo $TEST'
         # test_command = 'TEST=$(echo tests/models/bert/__init__.py tests/models/bert/test_modeling_bert.py tests/models/bert/test_modeling_flax_bert.py tests/models/bert/test_modeling_tf_bert.py tests/models/bert/test_tokenization_bert.py tests/models/bert/test_tokenization_bert_tf.py | circleci tests split) && echo $TEST'
         test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py") && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt'
+        test_command = 'TEST=$(echo tests/models/bert/__init__.py tests/models/bert/test_modeling_bert.py tests/models/bert/test_modeling_flax_bert.py tests/models/bert/test_modeling_tf_bert.py tests/models/bert/test_tokenization_bert.py tests/models/bert/test_tokenization_bert_tf.py) && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt'
+
 
         steps.append({"run": {"name": "Run tests", "command": test_command}})
         steps.append({"store_artifacts": {"path": "~/transformers/circleci_test_files.txt"}})
