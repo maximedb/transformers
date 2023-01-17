@@ -36,7 +36,7 @@ class CircleCIJob:
     docker_image: List[Dict[str, str]] = None
     install_steps: List[str] = None
     marker: Optional[str] = None
-    parallelism: Optional[int] = 1
+    parallelism: Optional[int] = 8
     pytest_num_workers: int = 16
     pytest_options: Dict[str, Any] = None
     resource_class: Optional[str] = "xlarge"
@@ -108,7 +108,7 @@ class CircleCIJob:
 
         # store to a file with each test in a different line
         # test_command_0 = 'echo tests/models/bert/test_modeling_bert.py >> circleci_test_files.txt && echo tests/models/gpt2/test_modeling_gpt2.py >> circleci_test_files.txt && echo tests/models/bart/test_modeling_bart.py >> circleci_test_files.txt && echo tests/models/t5/test_modeling_t5.py >> circleci_test_files.txt'
-        test_command_0 = 'TESTS=$(circleci tests glob tests/models/bert/*.py) && echo $TESTS && echo $TESTS > circleci_test_files.txt'
+        test_command_0 = 'TESTS=$(circleci tests glob tests/models/*) && echo $TESTS && echo $TESTS > circleci_test_files.txt'
         test_command_1 = f'echo $(cat circleci_test_files.txt) | tr " " "\\n" >> circleci_test_files_processed.txt'
         test_command_2 = 'TESTFILES=$(circleci tests split circleci_test_files_processed.txt) && echo $TESTFILES && echo $TESTFILES > circleci_test_files_splitted.txt'
         test_command_3 = 'python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests $(cat circleci_test_files_splitted.txt) | tee tests_output.txt'
