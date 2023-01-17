@@ -105,28 +105,22 @@ class CircleCIJob:
             test_command += " " + " ".join(self.tests_to_run)
         if self.marker is not None:
             test_command += f" -m {self.marker}"
-        #test_command += " | tee tests_output.txt"
-        test_command = 'TEST=$(echo "tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py tests/models/bart/test_modeling_bart.py tests/models/t5/test_modeling_t5.py" | circleci tests split) && python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests $TEST | tee tests_output.txt'
-        # test_command = 'TEST=$(echo "tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py" | circleci tests split) && echo $TEST'
-        test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py" | circleci tests split) && echo $TEST'
-        # test_command = 'TEST=$(echo tests/models/bert/__init__.py tests/models/bert/test_modeling_bert.py tests/models/bert/test_modeling_flax_bert.py tests/models/bert/test_modeling_tf_bert.py tests/models/bert/test_tokenization_bert.py tests/models/bert/test_tokenization_bert_tf.py | circleci tests split) && echo $TEST'
-        test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py") && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt'
-        test_command = 'TEST=$(echo tests/models/bert/__init__.py tests/models/bert/test_modeling_bert.py tests/models/bert/test_modeling_flax_bert.py tests/models/bert/test_modeling_tf_bert.py tests/models/bert/test_tokenization_bert.py tests/models/bert/test_tokenization_bert_tf.py) && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt'
-        test_command = 'TEST=$(echo tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py tests/models/bart/test_modeling_bart.py tests/models/t5/test_modeling_t5.py) && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt && python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests $TESTFILES | tee tests_output.txt'
-        test_command = 'TEST=$(echo tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py tests/models/bart/test_modeling_bart.py tests/models/t5/test_modeling_t5.py) && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt'
-        test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py") && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt'
-        test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py" | circleci tests split) && echo $TEST'
-        test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py") && echo $TEST && echo $TEST > test.txt && TEST2=$(circleci tests split test.txt) && echo $TEST2 && echo $TEST2 > test2.txt'
 
-        test_command = 'echo tests/models/bert/test_modeling_bert.py >> circleci_test_files.txt && echo tests/models/gpt2/test_modeling_gpt2.py >> circleci_test_files.txt && echo tests/models/bart/test_modeling_bart.py >> circleci_test_files.txt && echo tests/models/t5/test_modeling_t5.py >> circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES && echo $TESTFILES > circleci_test_files_splitted.txt'
-        test_command_2 = 'python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests $(cat circleci_test_files_splitted.txt)'
-
-        steps.append({"run": {"name": "Run tests", "command": test_command}})
+        # store to a file with each test in a different line
+        # test_command_0 = 'echo tests/models/bert/test_modeling_bert.py >> circleci_test_files.txt && echo tests/models/gpt2/test_modeling_gpt2.py >> circleci_test_files.txt && echo tests/models/bart/test_modeling_bart.py >> circleci_test_files.txt && echo tests/models/t5/test_modeling_t5.py >> circleci_test_files.txt'
+        test_command_0 = 'TESTS=$(circleci tests glob tests/models/bert/*.py) && echo $TESTS && echo $TESTS > circleci_test_files.txt'
+        test_command_1 = '$(cat circleci_test_files.txt) | tr " " "\n" >> circleci_test_files_processed.txt'
+        test_command_2 = 'TESTFILES=$(circleci tests split circleci_test_files_processed.txt) && echo $TESTFILES && echo $TESTFILES > circleci_test_files_splitted.txt'
+        test_command_3 = 'python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests $(cat circleci_test_files_splitted.txt) | tee tests_output.txt'
+        steps.append({"run": {"name": "Run tests 0", "command": test_command_0}})
+        steps.append({"run": {"name": "Run tests 1", "command": test_command_1}})
         steps.append({"run": {"name": "Run tests 2", "command": test_command_2}})
+        steps.append({"run": {"name": "Run tests 2", "command": test_command_3}})
 
         steps.append({"store_artifacts": {"path": "~/transformers/circleci_test_files.txt"}})
+        steps.append({"store_artifacts": {"path": "~/transformers/circleci_test_files_processed.txt"}})
         steps.append({"store_artifacts": {"path": "~/transformers/circleci_test_files_splitted.txt"}})
-        # steps.append({"store_artifacts": {"path": "~/transformers/tests_output.txt"}})
+        steps.append({"store_artifacts": {"path": "~/transformers/tests_output.txt"}})
         steps.append({"store_artifacts": {"path": "~/transformers/reports"}})
 
         job["steps"] = steps
