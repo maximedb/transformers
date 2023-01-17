@@ -120,12 +120,7 @@ class Linear8bitLt(nn.Linear):
 
         out = bnb.matmul(x, self.weight, bias=self.bias, state=self.state)
         if self.lora_dim > 0:
-            print((self.lora_A.T @ self.lora_B.T))
-            print(self.lora_A.dtype)
-            print(self.lora_B.dtype)
-            raise
             lora_result = (self.lora_dropout(x) @ self.lora_A.T @ self.lora_B.T) * self.scaling
-            print(lora_result.mean())
             out += lora_result
 
         if not self.state.has_fp16_weights:
