@@ -36,7 +36,7 @@ class CircleCIJob:
     docker_image: List[Dict[str, str]] = None
     install_steps: List[str] = None
     marker: Optional[str] = None
-    parallelism: Optional[int] = 4
+    parallelism: Optional[int] = 1
     pytest_num_workers: int = 16
     pytest_options: Dict[str, Any] = None
     resource_class: Optional[str] = "xlarge"
