@@ -116,6 +116,7 @@ class CircleCIJob:
         test_command = 'TEST=$(echo tests/models/bert/test_modeling_bert.py tests/models/gpt2/test_modeling_gpt2.py tests/models/bart/test_modeling_bart.py tests/models/t5/test_modeling_t5.py) && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt'
         test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py") && echo $TEST > circleci_test_files.txt && TESTFILES=$(circleci tests split circleci_test_files.txt) && echo $TESTFILES > circleci_test_files_splitted.txt'
         test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py" | circleci tests split) && echo $TEST'
+        test_command = 'TEST=$(circleci tests glob "tests/models/bert/*.py") && echo $TEST && echo $TEST > test.txt && TEST2=$(circleci tests split test.txt) && echo $TEST2 && echo $TEST2 > test2.txt'
 
         test_command_2 = 'python -m pytest -n 3 --max-worker-restart=0 --dist=loadfile -s --make-reports=tests $(cat circleci_test_files_splitted.txt)'
 
