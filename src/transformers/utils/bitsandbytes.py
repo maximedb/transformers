@@ -95,7 +95,7 @@ class Linear8bitLt(nn.Linear):
             self.lora_dropout = nn.Dropout(p=lora_dropout)
             self.lora_A = nn.Parameter(self.weight.new_zeros((lora_dim, input_features)))
             self.lora_B = nn.Parameter(self.weight.new_zeros((output_features, lora_dim)))
-            self.scaling = self.lora_alpha / self.r
+            self.scaling = self.lora_alpha / self.lora_dim
             # Freezing the pre-trained weight matrix
             # self.weight.requires_grad = False
             nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
