@@ -47,14 +47,16 @@ class LoraLinear(bnb.nn.Linear8bitLt):
             self.scaling = self.lora_alpha / self.r
             # Freezing the pre-trained weight matrix
             self.weight.requires_grad = False
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        bnb.nn.Linear8bitLt.reset_parameters(self)
-        if hasattr(self, "lora_A"):
-            # initialize A the same way as the default for nn.Linear and B to zero
             nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
             nn.init.zeros_(self.lora_B)
+        #self.reset_parameters()
+
+    # def reset_parameters(self):
+    #     bnb.nn.Linear8bitLt.reset_parameters(self)
+    #     if hasattr(self, "lora_A"):
+    #         # initialize A the same way as the default for nn.Linear and B to zero
+    #         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+    #         nn.init.zeros_(self.lora_B)
 
     def forward(self, x: torch.Tensor):
         result = super().forward(x)
