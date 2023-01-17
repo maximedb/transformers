@@ -35,12 +35,11 @@ class LoraLinear(bnb.nn.Linear8bitLt):
         lora_dropout: float = 0.,
         **kwargs
     ):
-        bnb.nn.Linear8bitLt.__init__(self, in_features, out_features, **kwargs)
+        super().__init__(self, in_features, out_features, **kwargs)
         self.r = r
         self.lora_alpha = lora_alpha
         self.lora_dropout = nn.Dropout(p=lora_dropout)
 
-        # Actual trainable parameters
         if r > 0:
             self.lora_A = nn.Parameter(self.weight.new_zeros((r, in_features)))
             self.lora_B = nn.Parameter(self.weight.new_zeros((out_features, r)))
@@ -49,23 +48,93 @@ class LoraLinear(bnb.nn.Linear8bitLt):
             self.weight.requires_grad = False
             nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
             nn.init.zeros_(self.lora_B)
-        #self.reset_parameters()
-
-    # def reset_parameters(self):
-    #     bnb.nn.Linear8bitLt.reset_parameters(self)
-    #     if hasattr(self, "lora_A"):
-    #         # initialize A the same way as the default for nn.Linear and B to zero
-    #         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
-    #         nn.init.zeros_(self.lora_B)
 
     def forward(self, x: torch.Tensor):
         result = super().forward(x)
-        print(result.mean())
         if self.r > 0:
             lora_result = (self.lora_dropout(x) @ self.lora_A.T @ self.lora_B.T) * self.scaling
-            print(lora_result.mean())
             result += lora_result
         return result
+
+
+class Linear8bitLt(nn.Linear):
+    def __init__(
+        self,
+        input_features,
+        output_features,
+        bias=True,
+        has_fp16_weights=True,
+        memory_efficient_backward=False,
+        threshold=0.0,
+        index=None,
+        lora_dim=0,
+        lora_alpha=0,
+        lora_dropout=0
+    ):
+        super().__init__(
+            input_features, output_features, bias
+        )
+        self.state = bnb.nn.MatmulLtState()
+        self.index = index
+
+        self.state.threshold = threshold
+        self.state.has_fp16_weights = has_fp16_weights
+        self.state.memory_efficient_backward = memory_efficient_backward
+        if threshold > 0.0 and not has_fp16_weights:
+            self.state.use_pool = True
+
+        self.weight = bnb.nn.Int8Params(
+            self.weight.data, has_fp16_weights=has_fp16_weights, requires_grad=has_fp16_weights
+        )
+
+        self.lora_dim = lora_dim
+
+        if self.lora_dim > 0:
+            self.lora_dim = lora_dim
+            self.lora_alpha = lora_alpha
+            self.lora_dropout = nn.Dropout(p=lora_dropout)
+            self.lora_A = nn.Parameter(self.weight.new_zeros((lora_dim, input_features)))
+            self.lora_B = nn.Parameter(self.weight.new_zeros((output_features, lora_dim)))
+            self.scaling = self.lora_alpha / self.r
+            # Freezing the pre-trained weight matrix
+            # self.weight.requires_grad = False
+            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+            nn.init.zeros_(self.lora_B)
+
+
+    def init_8bit_state(self):
+        self.state.CB = self.weight.CB
+        self.state.SCB = self.weight.SCB
+        self.weight.CB = None
+        self.weight.SCB = None
+
+    def forward(self, x):
+        self.state.is_training = self.training
+
+        if self.weight.CB is not None:
+            self.init_8bit_state()
+
+        # weights are cast automatically as Int8Params, but the bias has to be cast manually
+        if self.bias is not None and self.bias.dtype != torch.float16:
+            self.bias.data = self.bias.data.half()
+
+        out = bnb.nn.matmul(x, self.weight, bias=self.bias, state=self.state)
+        if self.lora_dim > 0:
+            lora_result = (self.lora_dropout(x) @ self.lora_A.T @ self.lora_B.T) * self.scaling
+            out += lora_result
+
+        if not self.state.has_fp16_weights:
+            if not self.state.memory_efficient_backward and self.state.CB is not None:
+                # we converted 8-bit row major to turing/ampere format in the first inference pass
+                # we no longer need the row-major weight
+                del self.state.CB
+                self.weight.data = self.state.CxB
+            elif self.state.memory_efficient_backward and self.state.CxB is not None:
+                # For memory efficient backward, we convert 8-bit row major to turing/ampere format at each inference pass.
+                # Thus, we delete CxB from the state.
+                del self.state.CxB
+
+        return out
 
 
 def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None):
@@ -139,7 +208,7 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None):
             module._parameters[tensor_name] = new_value
 
 
-def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", lora_modules_to_convert=[], lora_dim=0, lora_alpha=0, lora_dropout=0):
+def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", lora_modules_to_convert="-1", lora_dim=0, lora_alpha=0, lora_dropout=0):
     """
     A helper function to replace all `torch.nn.Linear` modules by `bnb.nn.Linear8bit` modules from the `bitsandbytes`
     library. This will enable running your models using mixed int8 precision as described by the paper `GPT3.int8():
@@ -169,25 +238,17 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", 
             replace_8bit_linear(module, threshold, modules_to_not_convert, lora_modules_to_convert, lora_dim, lora_alpha, lora_dropout)
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
-            if re.match(lora_modules_to_convert, name):
-                with init_empty_weights():
-                    model._modules[name] = LoraLinear(
-                        module.in_features,
-                        module.out_features,
-                        bias=module.bias is not None,
-                        r=lora_dim, 
-                        lora_alpha=lora_alpha, 
-                        lora_dropout=lora_dropout
-                    )
-            else:
-                with init_empty_weights():
-                    model._modules[name] = bnb.nn.Linear8bitLt(
-                        module.in_features,
-                        module.out_features,
-                        module.bias is not None,
-                        has_fp16_weights=False,
-                        threshold=threshold,
-                    )
+            with init_empty_weights():
+                model._modules[name] = Linear8bitLt(
+                    module.in_features,
+                    module.out_features,
+                    module.bias is not None,
+                    has_fp16_weights=False,
+                    threshold=threshold,
+                    lora_dim=0 if re.match(lora_modules_to_convert, name) else lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout
+                )
     return model
 
 
