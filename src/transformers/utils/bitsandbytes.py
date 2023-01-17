@@ -133,7 +133,7 @@ def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None):
             module._parameters[tensor_name] = new_value
 
 
-def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head"):
+def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", lora_modules_to_convert=[], lora_dim=0, lora_alpha=0, lora_dropout=0):
     """
     A helper function to replace all `torch.nn.Linear` modules by `bnb.nn.Linear8bit` modules from the `bitsandbytes`
     library. This will enable running your models using mixed int8 precision as described by the paper `GPT3.int8():
@@ -158,11 +158,9 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head"):
             Name of the module to not convert in `Linear8bitLt`. In practice we keep the `lm_head` in full precision
             for numerical stability reasons.
     """
-    config = model.config
-    lora_modules_to_convert = config.lora_modules_to_convert
     for name, module in model.named_children():
         if len(list(module.children())) > 0:
-            replace_8bit_linear(module, threshold, modules_to_not_convert)
+            replace_8bit_linear(module, threshold, modules_to_not_convert, lora_dim, lora_alpha, lora_dropout)
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
             if name in lora_modules_to_convert:
@@ -171,9 +169,9 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head"):
                         module.in_features,
                         module.out_features,
                         bias=module.bias is not None,
-                        r=config.lora_dim, 
-                        lora_alpha=config.lora_alpha, 
-                        lora_dropout=config.lora_dropout
+                        r=lora_dim, 
+                        lora_alpha=lora_alpha, 
+                        lora_dropout=lora_dropout
                     )
             else:
                 with init_empty_weights():

@@ -2383,7 +2383,13 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             modules_to_not_convert.extend(keep_in_fp32_modules)
 
             model = replace_8bit_linear(
-                model, threshold=load_in_8bit_threshold, modules_to_not_convert=modules_to_not_convert
+                model,
+                threshold=load_in_8bit_threshold,
+                modules_to_not_convert=modules_to_not_convert,
+                lora_modules_to_convert=config.lora_modules_to_convert,
+                lora_dim=config.lora_dim,
+                lora_alpha=config.lora_alpha,
+                lora_dropout=config.lora_dropout
             )
 
         if isinstance(device_map, str):
