@@ -160,7 +160,7 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", 
     """
     for name, module in model.named_children():
         if len(list(module.children())) > 0:
-            replace_8bit_linear(module, threshold, modules_to_not_convert, lora_dim, lora_alpha, lora_dropout)
+            replace_8bit_linear(module, threshold, modules_to_not_convert, lora_modules_to_convert, lora_dim, lora_alpha, lora_dropout)
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
             if name in lora_modules_to_convert:
