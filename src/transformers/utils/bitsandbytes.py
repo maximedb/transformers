@@ -1,3 +1,4 @@
+import re
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -163,7 +164,7 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", 
             replace_8bit_linear(module, threshold, modules_to_not_convert, lora_modules_to_convert, lora_dim, lora_alpha, lora_dropout)
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
-            if name in lora_modules_to_convert:
+            if re.match(lora_modules_to_convert, name):
                 with init_empty_weights():
                     model._modules[name] = LoraLinear(
                         module.in_features,
