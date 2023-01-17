@@ -165,6 +165,7 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", 
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
             if re.match(lora_modules_to_convert, name):
+                raise
                 with init_empty_weights():
                     model._modules[name] = LoraLinear(
                         module.in_features,
