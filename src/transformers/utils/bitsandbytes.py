@@ -1,6 +1,15 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+import math
+from typing import Optional, List
+
 from copy import deepcopy
 
 from transformers.utils import is_accelerate_available, is_bitsandbytes_available
+
+import bitsandbytes as bnb
 
 
 if is_bitsandbytes_available():
@@ -12,6 +21,45 @@ if is_bitsandbytes_available():
 if is_accelerate_available():
     from accelerate import init_empty_weights
     from accelerate.utils import find_tied_parameters
+
+
+class LoraLinear(bnb.nn.Linear8bitLt):
+    # LoRA implemented in a dense layer
+    def __init__(
+        self, 
+        in_features: int, 
+        out_features: int, 
+        r: int = 0, 
+        lora_alpha: int = 1, 
+        lora_dropout: float = 0.,
+        **kwargs
+    ):
+        bnb.nn.Linear8bitLt.__init__(self, in_features, out_features, **kwargs)
+        self.r = r
+        self.lora_alpha = lora_alpha
+        self.lora_dropout = nn.Dropout(p=lora_dropout)
+
+        # Actual trainable parameters
+        if r > 0:
+            self.lora_A = nn.Parameter(self.weight.new_zeros((r, in_features)))
+            self.lora_B = nn.Parameter(self.weight.new_zeros((out_features, r)))
+            self.scaling = self.lora_alpha / self.r
+            # Freezing the pre-trained weight matrix
+            self.weight.requires_grad = False
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        bnb.nn.Linear8bitLt.reset_parameters(self)
+        if hasattr(self, "lora_A"):
+            # initialize A the same way as the default for nn.Linear and B to zero
+            nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+            nn.init.zeros_(self.lora_B)
+
+    def forward(self, x: torch.Tensor):
+        result = super().forward(x)
+        if self.r > 0:
+            result += (self.lora_dropout(x) @ self.lora_A.T @ self.lora_B.T) * self.scaling
+        return result
 
 
 def set_module_8bit_tensor_to_device(module, tensor_name, device, value=None):
@@ -110,19 +158,32 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head"):
             Name of the module to not convert in `Linear8bitLt`. In practice we keep the `lm_head` in full precision
             for numerical stability reasons.
     """
+    config = model.config
+    lora_modules_to_convert = config.lora_modules_to_convert
     for name, module in model.named_children():
         if len(list(module.children())) > 0:
             replace_8bit_linear(module, threshold, modules_to_not_convert)
 
         if isinstance(module, nn.Linear) and name not in modules_to_not_convert:
-            with init_empty_weights():
-                model._modules[name] = bnb.nn.Linear8bitLt(
-                    module.in_features,
-                    module.out_features,
-                    module.bias is not None,
-                    has_fp16_weights=False,
-                    threshold=threshold,
-                )
+            if name in lora_modules_to_convert:
+                with init_empty_weights():
+                    model._modules[name] = LoraLinear(
+                        module.in_features,
+                        module.out_features,
+                        bias=module.bias is not None,
+                        r=config.lora_dim, 
+                        lora_alpha=config.lora_alpha, 
+                        lora_dropout=config.lora_dropout
+                    )
+            else:
+                with init_empty_weights():
+                    model._modules[name] = bnb.nn.Linear8bitLt(
+                        module.in_features,
+                        module.out_features,
+                        module.bias is not None,
+                        has_fp16_weights=False,
+                        threshold=threshold,
+                    )
     return model
 
 
