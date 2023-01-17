@@ -123,16 +123,16 @@ class Linear8bitLt(nn.Linear):
             lora_result = (self.lora_dropout(x) @ self.lora_A.T @ self.lora_B.T) * self.scaling
             out += lora_result
 
-        # if not self.state.has_fp16_weights:
-        #     if not self.state.memory_efficient_backward and self.state.CB is not None:
-        #         # we converted 8-bit row major to turing/ampere format in the first inference pass
-        #         # we no longer need the row-major weight
-        #         del self.state.CB
-        #         self.weight.data = self.state.CxB
-        #     elif self.state.memory_efficient_backward and self.state.CxB is not None:
-        #         # For memory efficient backward, we convert 8-bit row major to turing/ampere format at each inference pass.
-        #         # Thus, we delete CxB from the state.
-        #         del self.state.CxB
+        if not self.state.has_fp16_weights:
+            if not self.state.memory_efficient_backward and self.state.CB is not None:
+                # we converted 8-bit row major to turing/ampere format in the first inference pass
+                # we no longer need the row-major weight
+                del self.state.CB
+                self.weight.data = self.state.CxB
+            elif self.state.memory_efficient_backward and self.state.CxB is not None:
+                # For memory efficient backward, we convert 8-bit row major to turing/ampere format at each inference pass.
+                # Thus, we delete CxB from the state.
+                del self.state.CxB
 
         return out
 
@@ -245,9 +245,10 @@ def replace_8bit_linear(model, threshold=6.0, modules_to_not_convert="lm_head", 
                     module.bias is not None,
                     has_fp16_weights=False,
                     threshold=threshold,
-                    lora_dim=0 if re.match(lora_modules_to_convert, name) else lora_dim,
+                    lora_dim=lora_dim if re.match(lora_modules_to_convert, name) else 0,
                     lora_alpha=lora_alpha,
-                    lora_dropout=lora_dropout
+                    lora_dropout=lora_dropout,
+                    memory_efficient_backward=True if re.match(lora_modules_to_convert, name) else False,
                 )
     return model
 
