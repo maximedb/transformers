@@ -93,8 +93,8 @@ class Linear8bitLt(nn.Linear):
             self.lora_dim = lora_dim
             self.lora_alpha = lora_alpha
             self.lora_dropout = nn.Dropout(p=lora_dropout)
-            self.lora_A = nn.Parameter(self.weight.new_zeros((lora_dim, input_features)))
-            self.lora_B = nn.Parameter(self.weight.new_zeros((output_features, lora_dim)))
+            self.lora_A = nn.Parameter(torch.zeros((lora_dim, input_features), device=self.device))
+            self.lora_B = nn.Parameter(torch.zeros((output_features, lora_dim), device=self.device))
             self.scaling = self.lora_alpha / self.lora_dim
             # Freezing the pre-trained weight matrix
             # self.weight.requires_grad = False
