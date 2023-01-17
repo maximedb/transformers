@@ -59,7 +59,9 @@ class LoraLinear(bnb.nn.Linear8bitLt):
     def forward(self, x: torch.Tensor):
         result = super().forward(x)
         if self.r > 0:
-            result += (self.lora_dropout(x) @ self.lora_A.T @ self.lora_B.T) * self.scaling
+            lora_result = (self.lora_dropout(x) @ self.lora_A.T @ self.lora_B.T) * self.scaling
+            print(lora_result.mean())
+            result += lora_result
         return result
 
 
